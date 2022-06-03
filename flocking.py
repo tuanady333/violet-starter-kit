@@ -15,8 +15,8 @@ class Bird(Agent):
 (
     # Step 1: Create a new simulation.
     Simulation(FlockingConfig(image_rotation=True, movement_speed=1, radius=50))
-    # Step 2: Add 100 birds to the simulation.
-    .batch_spawn_agents(100, Bird, images=["images/triangle.png"])
+    # Step 2: Add 50 birds to the simulation.
+    .batch_spawn_agents(50, Bird, images=["images/triangle.png"])
     # Step 3: Profit! 🎉
     .run()
 )
