@@ -1,6 +1,8 @@
 from vi import Agent, Simulation
 import random
 import vi
+from vi.config import Config
+import pygame
 
 
 
@@ -9,6 +11,10 @@ class CockroachAgent(Agent):
         super().__init__(*args, **kwargs)
         self.state = "Wandering"
         self.timer = 0
+        self.simulation = simulation
+        self.boundary_center = vi.Vector2(300, 300)  # Center of the circular boundary
+        self.boundary_radius = 100  # Radius of the circular boundary
+        self.inside_boundary = random.choice([True, False])  # Randomly start inside or outside the boundary
 
     def update(self):
         if self.state == "Wandering":
@@ -25,7 +31,7 @@ class CockroachAgent(Agent):
                 self.state = "Still"
 
         elif self.state == "Still":
-            if self.should_leave():
+            if self.leave_site():
                 self.state = "Leaving"
                 self.timer = 0
 
@@ -35,7 +41,7 @@ class CockroachAgent(Agent):
             if self.timer >= self.Tleave:
                 self.state = "Wandering"
 
-
+        self.restrict_movement()
 
     def wander(self):
         # Implement random walk behavior
@@ -47,18 +53,24 @@ class CockroachAgent(Agent):
 
     def should_join(self):
         # Implement joining probability based on local density
-        neighbors = self.in_proximity_accuracy()
-        return random.random() < self.Pjoin(neighbors)
+        proximity_iter = self.in_proximity_accuracy()
+    
+    # Count the number of neighbors within range
+        num_neighbors = sum(1 for _ in proximity_iter)
+    
+    # Calculate the joining probability based on the number of neighbors
+        return random.random() < self.Pjoin(num_neighbors)
 
     def move_towards_center(self):
         # Implement logic to move towards the center of the site
         center = self.site_center()
         self.pos += (center - self.pos) * 0.1  # Move 10% closer to center
 
-    def should_leave(self):
-        # Implement leaving probability based on local density
-        neighbors = self.count_neighbors()
-        return random.random() < self.Pleave(neighbors)
+    def count_neighbors(self):
+        # Count the number of neighbors within a given range
+        proximity_iter = self.in_proximity_accuracy()
+        num_neighbors = sum(1 for _ in proximity_iter)
+        return num_neighbors
 
     def leave_site(self):
         # Implement logic to leave the site
@@ -72,11 +84,34 @@ class CockroachAgent(Agent):
         # Check if the agent is in a site (simplified example)
         return self.pos.distance_to(self.site_center()) < self.site_radius()
 
-    def in_proximity_accuracy(self) -> vi.ProximityIter[tuple[Agent, float]]:
+    def in_proximity_accuracy(self):
         """Retrieve other agents that are in proximity of the current agent."""
-        return self.__simulation._proximity.in_proximity_accuracy(self)
+        return self.simulation._proximity.in_proximity_accuracy(self)
+
+    def restrict_movement(self):
+        # Restrict the movement based on initial position inside or outside the circular boundary
+        distance_to_center = self.pos.distance_to(self.boundary_center)
+        if self.inside_boundary:
+            if distance_to_center > self.boundary_radius:
+                direction_to_center = self.boundary_center - self.pos
+                direction_to_center = direction_to_center.normalize()
+                self.pos = self.boundary_center + direction_to_center * self.boundary_radius
+        else:
+            if distance_to_center < self.boundary_radius:
+                direction_to_outside = self.pos - self.boundary_center
+                direction_to_outside = direction_to_outside.normalize()
+                self.pos = self.boundary_center + direction_to_outside * self.boundary_radius
 
 
+    def is_within_bounds(self, pos):
+        # Check if a given position is within the circular boundary for initial state
+        distance_to_center = pos.distance_to(self.boundary_center)
+        if self.inside_boundary:
+            return distance_to_center <= self.boundary_radius
+        else:
+            return distance_to_center >= self.boundary_radius
+
+    
     def site_center(self):
         # Return the center of the site (simplified example)
         return vi.Vector2(50, 50)  # Example center position
@@ -109,9 +144,20 @@ class CockroachAgent(Agent):
 
 
 
+class AggregationSimulation(Simulation):
+    def draw(self, screen):
+        # Draw the circular boundary in white with a bold outline
+        pygame.draw.circle(screen, (255, 255, 255, [255]), width=2, draw_top_right= True, draw_top_left=None, draw_bottom_left=None, draw_bottom_right=None)
+        super().draw(screen)
+        
+# Initialize the simulation
+simulation = AggregationSimulation(Config())
+
 # Initialize and run the simulation
 simulation = (
-    Simulation()
+    simulation
     .batch_spawn_agents(100, CockroachAgent, ["images/white.png", "images/red.png"])
     .run()
-)
+) .run()
+
+
