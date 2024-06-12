@@ -5,7 +5,6 @@ import vi
 
 
 class CockroachAgent(Agent):
-    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.state = "Wandering"
@@ -37,10 +36,6 @@ class CockroachAgent(Agent):
                 self.state = "Wandering"
 
 
-        # Ensure agents stay within the boundary
-        self.pos.x = max(0, min(self.pos.x, self.width))
-        self.pos.y = max(0, min(self.pos.y, self.height))
-
 
     def wander(self):
         # Implement random walk behavior
@@ -52,7 +47,7 @@ class CockroachAgent(Agent):
 
     def should_join(self):
         # Implement joining probability based on local density
-        neighbors = self.count_neighbors()
+        neighbors = self.in_proximity_accuracy()
         return random.random() < self.Pjoin(neighbors)
 
     def move_towards_center(self):
@@ -77,9 +72,10 @@ class CockroachAgent(Agent):
         # Check if the agent is in a site (simplified example)
         return self.pos.distance_to(self.site_center()) < self.site_radius()
 
-    def count_neighbors(self):
-        # Count the number of neighbors within a given range
-        return len(self.neighbors_within_range(self.sensing_range))
+    def in_proximity_accuracy(self) -> vi.ProximityIter[tuple[Agent, float]]:
+        """Retrieve other agents that are in proximity of the current agent."""
+        return self.__simulation._proximity.in_proximity_accuracy(self)
+
 
     def site_center(self):
         # Return the center of the site (simplified example)
